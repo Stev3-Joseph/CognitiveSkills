@@ -74,6 +74,7 @@ async def submit_section_time(section_time: SectionTime):  # Accepts a single ob
 @router.post("/signup", response_model=dict)
 async def signup(user: UserSignup):
     logging.info(f"Received payload: {user.dict()}")
+    print(f"Received payload: {user.dict()}")
     existing_user = supabase.table("Users").select("*").eq("mobile", user.mobile).execute()
 
     if existing_user.data:

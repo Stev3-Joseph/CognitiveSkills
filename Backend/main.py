@@ -18,4 +18,3 @@ app.add_middleware(
 # myenv\Scripts\activate 
 # pip freeze > requirement.txt
 
-
