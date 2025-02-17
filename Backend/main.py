@@ -16,5 +16,6 @@ app.add_middleware(
 
 # uvicorn main:app --reload
 # myenv\Scripts\activate 
+# pip freeze > requirement.txt
 
 
