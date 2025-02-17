@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from database import supabase
+import logging
+logging.basicConfig(level=logging.INFO)
 
 from auth import hash_session_id,verify_session, create_jwt, verify_jwt
 
@@ -66,9 +68,12 @@ async def submit_section_time(section_time: SectionTime):  # Accepts a single ob
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+
 
 @router.post("/signup", response_model=dict)
 async def signup(user: UserSignup):
+    logging.info(f"Received payload: {user.dict()}")
     existing_user = supabase.table("Users").select("*").eq("mobile", user.mobile).execute()
 
     if existing_user.data:
