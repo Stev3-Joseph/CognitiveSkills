@@ -1,8 +1,12 @@
-from fastapi import APIRouter, HTTPException
-
+from fastapi import APIRouter, HTTPException, Depends
 from database import supabase
 
-from models import StudentAnswer, SectionTime
+from auth import hash_session_id,verify_session, create_jwt, verify_jwt
+
+from models import StudentAnswer, SectionTime , UserSignup, UserLogin
+
+import secrets
+import datetime
 
 router = APIRouter()
 
@@ -62,10 +66,93 @@ async def submit_section_time(section_time: SectionTime):  # Accepts a single ob
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+@router.post("/signup", response_model=dict)
+async def signup(user: UserSignup):
+    existing_user = supabase.table("Users").select("*").eq("mobile", user.mobile).execute()
+
+    if existing_user.data:
+        raise HTTPException(status_code=400, detail="Phone number already registered")
+
+    response = supabase.table("Users").insert({
+        "name": user.name,
+        "age": user.age,
+        "standard": user.standard,
+        "mobile": user.mobile,
+        "created_at": datetime.datetime.utcnow().isoformat(),
+        "date_of_birth": user.date_of_birth
+        
+    }).execute()
+
+    return {
+        "message": "User registered successfully",
+        "user_id": response.data[0]["user_id"],
+        "created_at": response.data[0]["created_at"]
+    }
+@router.post("/login", response_model=dict)
+async def login(user: UserLogin):
+    # Updated query to include date_of_birth check
+    db_user = supabase.table("Users").select("user_id, mobile, created_at, date_of_birth").eq("name", user.name).eq("mobile", user.mobile).eq("date_of_birth", user.date_of_birth).execute()
+
+    if not db_user.data:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    user_data = db_user.data[0]
+    user_id = user_data["user_id"]
+    created_at = user_data["created_at"]
+    date_of_birth = user_data["date_of_birth"]
+
+    # Generate session ID and JWT
+    session_id = secrets.token_hex(32)
+    hashed_session = hash_session_id(session_id)
+    jwt_token = create_jwt(str(user_id))
+
+    # Store session in Supabase
+    supabase.table("Sessions").insert({
+        "session_id": hashed_session,
+        "user_id": user_id,
+        "token": jwt_token,
+        "created_at": datetime.datetime.utcnow().isoformat(),
+        "expires_at": (datetime.datetime.utcnow() + datetime.timedelta(days=7)).isoformat()
+    }).execute()
+
+    return {
+        "message": "Login successful",
+        "token": jwt_token,
+        "session_id": session_id,
+        "user": {
+            "user_id": user_id,
+            "name": user.name,
+            "mobile": user.mobile,
+            "date_of_birth": date_of_birth,
+            "created_at": created_at
+        }
+    }
+
+@router.get("/protected", response_model=dict)
+async def protected_route(token: str, session_id: str, user_id: str):
+    valid_jwt = verify_jwt(token)
+    valid_session = verify_session(session_id, user_id)
+
+    if not valid_jwt :
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    elif not valid_session:
+        raise HTTPException(status_code=401, detail="Invalid session")  
+
+    return {
+        "message": "You are authenticated",
+        "user_id": user_id
+    }
+
+@router.post("/logout", response_model=dict)
+async def logout(session_id: str):
+    supabase.table("Sessions").delete().eq("session_id", session_id).execute()
+    return {"message": "Logged out successfully"}
+
     
 #to avoid 127.0.0.1:54887 - "GET / HTTP/1.1" 404 Not Found
 @router.get("/")
 async def root():
     return {"message": "Hello World"}
+
 
