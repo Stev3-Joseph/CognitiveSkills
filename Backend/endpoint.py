@@ -80,7 +80,8 @@ async def signup(user: UserSignup):
         "standard": user.standard,
         "mobile": user.mobile,
         "created_at": datetime.datetime.utcnow().isoformat(),
-        "date_of_birth": user.date_of_birth
+        "date_of_birth": user.date_of_birth,
+        "school": user.school
         
     }).execute()
 
