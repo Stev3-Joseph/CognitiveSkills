@@ -34,7 +34,7 @@ def verify_session(session_id: str, user_id: str) -> bool:
         return False  # Session expired  
 
     # Check if the session ID matches the stored hashed session  
-    is_valid = bcrypt.checkpw(session_id.encode(), stored_hashed_session.encode())
+    is_valid = session_id == stored_hashed_session
     if not is_valid:  
         print("Invalid session ID. Provided:", session_id, "Stored hash:", stored_hashed_session)  
 

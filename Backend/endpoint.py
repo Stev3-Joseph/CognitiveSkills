@@ -80,7 +80,8 @@ async def signup(user: UserSignup):
     if existing_user.data:
         raise HTTPException(status_code=400, detail="Phone number already registered")
 
-    response = supabase.table("Users").insert({
+    # First, insert into Users table
+    user_response = supabase.table("Users").insert({
         "name": user.name,
         "age": user.age,
         "standard": user.standard,
@@ -88,13 +89,25 @@ async def signup(user: UserSignup):
         "created_at": datetime.datetime.utcnow().isoformat(),
         "date_of_birth": user.date_of_birth,
         "school": user.school
-        
+    }).execute()
+    
+    # Get the newly created user_id
+    new_user_id = user_response.data[0]["user_id"]
+    
+    # Then, insert into Students table
+    student_response = supabase.table("Students").insert({
+        "student_id": new_user_id,  # Use the same ID for consistency
+        "name": user.name,
+        "age": user.age,
+        "grade_level": user.standard , # Assuming 'standard' is equivalent to 'grade_level'
+        "school": user.school
     }).execute()
 
     return {
         "message": "User registered successfully",
-        "user_id": response.data[0]["user_id"],
-        "created_at": response.data[0]["created_at"]
+        "user_id": new_user_id,
+        "created_at": user_response.data[0]["created_at"],
+        "student_id": student_response.data[0]["student_id"]
     }
 @router.post("/login", response_model=dict)
 async def login(user: UserLogin):
@@ -106,8 +119,8 @@ async def login(user: UserLogin):
 
     user_data = db_user.data[0]
     user_id = user_data["user_id"]
-    created_at = user_data["created_at"]
     date_of_birth = user_data["date_of_birth"]
+    created_at = datetime.datetime.utcnow().isoformat()
 
     # Generate session ID and JWT
     session_id = secrets.token_hex(32)
@@ -119,14 +132,14 @@ async def login(user: UserLogin):
         "session_id": hashed_session,
         "user_id": user_id,
         "token": jwt_token,
-        "created_at": datetime.datetime.utcnow().isoformat(),
+        "created_at": created_at,
         "expires_at": (datetime.datetime.utcnow() + datetime.timedelta(days=7)).isoformat()
     }).execute()
 
     return {
         "message": "Login successful",
         "token": jwt_token,
-        "session_id": session_id,
+        "session_id": hashed_session,
         "user": {
             "user_id": user_id,
             "name": user.name,
@@ -153,8 +166,15 @@ async def protected_route(token: str, session_id: str, user_id: str):
 
 @router.post("/logout", response_model=dict)
 async def logout(session_id: str):
-    supabase.table("Sessions").delete().eq("session_id", session_id).execute()
-    return {"message": "Logged out successfully"}
+    
+    response = supabase.table("Sessions").delete().eq("session_id", session_id).execute()
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {
+        "message": "Logout successful"
+    }
 
     
 #to avoid 127.0.0.1:54887 - "GET / HTTP/1.1" 404 Not Found

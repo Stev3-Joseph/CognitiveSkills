@@ -3,7 +3,7 @@ from endpoint import router
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Assessment API")
-app.include_router(router, prefix="/api/v1")
+app.include_router(router, prefix="/api")
 
 
 app.add_middleware(
