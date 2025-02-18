@@ -161,9 +161,28 @@ async def login(user: UserLogin):
     user_data = db_user.data[0]
     user_id = user_data["user_id"]
     date_of_birth = user_data["date_of_birth"]
+    
+    # Check for existing active session
+    existing_session = supabase.table("Sessions").select("session_id, token").eq("user_id", user_id).gt("expires_at", datetime.datetime.utcnow().isoformat()).execute()
+    print(existing_session.data)
+    if existing_session.data:
+        # Return existing session
+        session_data = existing_session.data[0]
+        return {
+            "message": "Already logged in",
+            "token": session_data["token"],
+            "session_id": session_data["session_id"],
+            "user": {
+                "user_id": user_id,
+                "name": user.name,
+                "mobile": user.mobile,
+                "date_of_birth": date_of_birth,
+                "created_at": user_data["created_at"]
+            }
+        }
+    
+    # If no active session exists, create a new one
     created_at = datetime.datetime.utcnow().isoformat()
-
-    # Generate session ID and JWT
     session_id = secrets.token_hex(32)
     hashed_session = hash_session_id(session_id)
     jwt_token = create_jwt(str(user_id))
