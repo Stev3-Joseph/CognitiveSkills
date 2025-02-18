@@ -1,15 +1,16 @@
 from pydantic import BaseModel
 
-class StudentAnswer(BaseModel):
-    student_id: str
-    question_id: int
-    selected_answer: int
+class response_model(BaseModel):
+    qNumber: int
+    answer: int
 
-class SectionTime(BaseModel):
-    student_id: str
-    section_id: int
-    time_spent_seconds: int
-    
+class StudentAnswer(BaseModel):
+    userId: str
+    sessionId: str
+    section: str
+    answers: list[response_model]
+    timeTaken: int
+
 
 class UserSignup(BaseModel):
     name: str

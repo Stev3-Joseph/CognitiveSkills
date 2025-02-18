@@ -5,69 +5,110 @@ logging.basicConfig(level=logging.INFO)
 
 from auth import hash_session_id,verify_session, create_jwt, verify_jwt
 
-from models import StudentAnswer, SectionTime , UserSignup, UserLogin
+from models import StudentAnswer, UserSignup, UserLogin
 
 import secrets
 import datetime
 
 router = APIRouter()
 
-@router.post("/submit-answer/", response_model=dict)
-async def submit_answers(answers: list[StudentAnswer]):
+#session validation
+@router.post("/session", response_model=dict)
+async def validate_session(session_id: str):
     try:
-        # Extract question IDs from request
-        question_ids = [answer.question_id for answer in answers]
+        response = supabase.table("Sessions").select("session_id").eq("session_id", session_id).execute()
+        is_valid = len(response.data) > 0
+        
+        return {
+            "valid": is_valid
+        }
+    except Exception as e:
+        # Log the exception but return a clean response
+        print(f"Error validating session: {str(e)}")
+        return {
+            "valid": False
+        }
+        
 
-        # Fetch correct answers for all given question IDs
-        response = supabase.table("Questions").select("question_id, correct_answer").in_("question_id", question_ids).execute()
+#check if user has completed a  section from Student_Section_Time table
+@router.post("/section", response_model=dict)
+async def check_section_completion(user_id: str, section: str):
+    response = supabase.table("Student_Section_Time").select("*").eq("student_id", user_id).eq("section", section).execute()
+    
+    return {
+        "message": "Section completion status",
+        "completed": bool(response.data)
+    }
+
+@router.post("/submit", response_model=dict)
+async def submit_answers(student_answer: StudentAnswer):
+    try:
+        # First, validate if the session exists
+        session_check = supabase.table("Sessions").select("session_id").eq("session_id", student_answer.sessionId).execute()
+        
+        if not session_check.data:
+            raise HTTPException(status_code=404, detail="Session does not exist")
+        
+        # Extract question IDs from the request
+        question_numbers = [response.qNumber for response in student_answer.answers]
+        
+        # Fetch correct answers for all given question numbers
+        response = supabase.table("Questions").select("question_id, correct_answer").in_("question_id", question_numbers).execute()
         question_data = {q["question_id"]: q["correct_answer"] for q in response.data}
-
+        
         if not question_data:
             raise HTTPException(status_code=404, detail="Questions not found")
-
-        # Prepare bulk insert data
+        
+        # Prepare bulk insert data for answers
         insert_data = []
-        for answer in answers:
-            if answer.question_id not in question_data:
+        results = []
+        
+        for answer in student_answer.answers:
+            if answer.qNumber not in question_data:
                 continue  # Skip if question not found
-
-            is_correct = question_data[answer.question_id] == answer.selected_answer
+            
+            is_correct = question_data[answer.qNumber] == answer.answer
+            
             insert_data.append({
-                "answer_id": answer.question_id,
-                "student_id": answer.student_id,
-                "question_id": answer.question_id,
-                "selected_answer": answer.selected_answer,
+                "answer_id": answer.qNumber,
+                "student_id": student_answer.userId,
+                "section": student_answer.section,
+                "question_id": answer.qNumber,
+                "selected_answer": answer.answer,
                 "is_correct": is_correct
             })
-
+            
+            results.append({
+                "qNumber": answer.qNumber,
+                "is_correct": is_correct
+            })
+        
         if not insert_data:
             raise HTTPException(status_code=400, detail="No valid answers to insert")
-
+        
         # Insert all answers in one go
         insert_response = supabase.table("Student_Answers").insert(insert_data).execute()
-
+        
+        # Record time taken for this section in Student_Section_Time table
+        time_data = {
+            "student_id": student_answer.userId,
+            "section": student_answer.section,
+            "time_spent_seconds": student_answer.timeTaken
+        }
+        
+        time_response = supabase.table("Student_Section_Time").insert(time_data).execute()
+        
         return {
             "status": "success",
-            "inserted_answers": insert_response.data,
+            "inserted_count": len(insert_response.data),
+            "results": results,
+            "time_recorded": bool(time_response.data)
         }
+    except HTTPException as he:
+        raise he  # Re-raise HTTP exceptions as-is
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/submit-time/", response_model=dict)
-async def submit_section_time(section_time: SectionTime):  # Accepts a single object
-    try:
-        response = supabase.table("Student_Section_Time").insert({
-            "student_id": section_time.student_id,
-            "section_id": section_time.section_id,
-            "time_spent_seconds": section_time.time_spent_seconds
-        }).execute()
-
-        return {
-            "status": "success",
-            "data": response.data[0]
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
     
 
 
