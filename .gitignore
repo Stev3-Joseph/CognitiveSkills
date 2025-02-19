@@ -7,5 +7,7 @@ myenv/
 # Ignore Node.js dependencies
 frontend/node_modules/
 
+Backend/secret_key.py
+
 # Ignore Python cache
 __pycache__/
