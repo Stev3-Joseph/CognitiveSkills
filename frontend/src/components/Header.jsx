@@ -19,13 +19,13 @@ const Header = () => {
                 <img src="/logo-2.png" alt="Logo" className="h-full" />
             </Link>
             <nav className="flex gap-2 text-xl">
-                <Link to="/" className="mr-5 bg-white pr-2 pl-2 rounded-sm">Home</Link>
-                <Link to="/about" className="mr-5 bg-white pr-2 pl-2 rounded-sm">About</Link>
-                <Link to="/register" className="mr-5 bg-white pr-2 pl-2 rounded-sm">Register</Link>
+                <Link to="/" className="mr-5 bg-white hover:text-blue-500 pr-2 pl-2 rounded-sm">Home</Link>
+                <Link to="/about" className="mr-5 bg-white hover:text-blue-500 pr-2 pl-2 rounded-sm">About</Link>
+                <Link to="/register" className="mr-5 bg-white hover:text-blue-500 pr-2 pl-2 rounded-sm">Register</Link>
                 {!loggedIn ? (
-                    <Link to="/login" className="mr-5 bg-white pr-2 pl-2 rounded-sm">Login</Link>
+                    <Link to="/login" className="mr-5 bg-white hover:text-blue-500 pr-2 pl-2 rounded-sm">Login</Link>
                 ) : (
-                    <button onClick={logout} className="mr-5 bg-white pr-2 pl-2 rounded-sm">Log out</button>
+                        <button onClick={logout} className="mr-5 bg-white hover:text-blue-500 pr-2 pl-2 rounded-sm">Log out</button>
                 )}
             </nav>
         </header>

@@ -30,16 +30,15 @@ const Register = () => {
         }
     }
 
-    async function redirect(){
-        let session = await checkSession();
-        console.log(session);
-        if (session) {
-            alert("You have already logged in. Start the test.");
-            window.location.href = "/test";
-        }
-    }
-
     useEffect(()=>{
+        async function redirect() {
+            let session = await checkSession();
+            console.log(session);
+            if (session) {
+                alert("You have already logged in. Start the test.");
+                window.location.href = "/test";
+            }
+        }
         redirect();
     },[]);
     return (

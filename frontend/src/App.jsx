@@ -8,8 +8,18 @@ import Login from './pages/Login'
 import About from './pages/About'
 import NotFound from './pages/NotFound'
 import FinishTest from './pages/FinishTest'
+import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 
 function App() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if ((location.pathname.startsWith("/test") || location.pathname.startsWith("/login"))&& window.innerWidth < 768) {
+      alert("This test can only be taken on a computer.");
+      window.location.href = "/";
+    }
+  }, [location.pathname]);
   return (
     <div>
       <Routes>

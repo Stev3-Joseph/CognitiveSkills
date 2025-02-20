@@ -18,6 +18,8 @@ const logout = async() =>{
         alert(response.data.message);
         localStorage.removeItem("sessionId");
         localStorage.removeItem("userId");
+        localStorage.removeItem("answers");
+        localStorage.removeItem("sectionTimer");
     } catch (err) {
         console.log(err);
         alert("An error occurred while logging out. Please try again.");

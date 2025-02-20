@@ -109,7 +109,6 @@ async def submit_answers(student_answer: StudentAnswer):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    
 
 
 @router.post("/signup", response_model=dict)

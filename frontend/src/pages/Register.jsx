@@ -28,15 +28,16 @@ const Register = () => {
             console.log(err);
         }
     }
-    async function redirect(){
-        let session = await checkSession();
-        console.log("Session on - " + session);
-        if (session) {
-            alert("You have already logged in. Start the test.");
-            window.location.href = "/test";
-        }
-    }
+    
     useEffect(()=>{
+        async function redirect() {
+            let session = await checkSession();
+            console.log("Session on - " + session);
+            if (session) {
+                alert("You have already logged in. Start the test.");
+                window.location.href = "/test";
+            }
+        }
         redirect();  
     },[]);
     return (
@@ -44,7 +45,7 @@ const Register = () => {
             <div className="mb-8">
                 <Link to="/"><img src="./logo-2.png" alt="Logo" className="h-24" /></Link>
             </div>
-            <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-lg">
+            <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-lg min-w-sm">
                 <h1 className="text-2xl font-bold text-black text-center mb-6">Register for the test</h1>
                 <p className="text-red-500 text-center mb-3">{`(All the fields are mandatory)`}</p>
                 <form className="space-y-4" onSubmit={handleSubmit}>

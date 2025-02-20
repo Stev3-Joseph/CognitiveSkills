@@ -15,14 +15,14 @@ const About = ()=>{
                     Lorem, ipsum dolor sit amet consectetur adipisicing elit. Numquam officiis nulla praesentium. Ad cum fugit unde mollitia consequuntur, fugiat deleniti. Quis magnam hic veritatis dolore fugit, quam illo quidem eligendi blanditiis minus. Eligendi, qui enim harum quasi aspernatur nulla! Totam ratione assumenda sed porro perferendis maiores harum officiis. Molestiae, natus!
                 </div>
             </div>
-            <div className="w-fit p-4 gap-3 mt-10 flex justify-evenly bg-white rounded-2xl">
+            <div className="w-fit p-4 gap-3 mt-10 shadow-xl flex justify-evenly bg-white rounded-2xl">
                 <div className="flex flex-col items-center justify-center p-2 gap-3 h-fit w-fit">
-                    <img src="./Darshan.png" alt="Darshan Odedara" className="w-xs"/>
+                    <img src="Darshan.png" alt="Darshan Odedara" className="w-xs"/>
                     <h1 className="text-xl font-bold">Darshan Odedara</h1>
                     <h1 className="text-lg">Frontend Development</h1>
                 </div>
                 <div className="flex flex-col items-center justify-center p-2 gap-3 h-fit w-fit">
-                    <img src="" alt="Steve" className="w-xs"/>
+                    <img src="Steve.png" alt="Steve" className="w-xs"/>
                     <h1 className="text-xl font-bold">Steve Joseph</h1>
                     <h1 className="text-lg">Backend Development</h1>
                 </div>
