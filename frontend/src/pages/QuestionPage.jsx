@@ -1,28 +1,22 @@
 import { useParams } from "react-router-dom";
 import Question from "../components/Question";
 import TestNav from "../components/TestNav";
-import { useEffect} from "react";
+import { useEffect, useState} from "react";
 import axios from "axios";
-// import checkSection from "../util/section";
-// import checkSession from "../util/session";
+import checkSession from "../util/session";
 
 const QuestionPage = () =>{
     const { sectionName, qNumber } = useParams();
+    const [questionNumber, setQuestionNumber] = useState(null);
     useEffect(() => {
         if( parseInt(qNumber) < 1 || parseInt(qNumber) > 10 || sectionName > 'D'){
-            //navigate to path - /#
             window.location.href = '/notfound';
         }
         //Check session and section
-        // if(!checkSession()){
-        //     window.location.href = "/login";
-        // }else if(!checkSection(sectionName)){
-        //     if(sectionName != 'D'){
-        //         window.location.href = `/test/section/${sectionName + 1}`;
-        //     }else{
-        //         window.location.href = "/test/finish";
-        //     }
-        // }
+        if(!checkSession()){
+            window.location.href = "/login";
+        }
+        setQuestionNumber(parseInt((sectionName.charCodeAt(0) - 65) * 10) + parseInt(qNumber))
     }, [qNumber, sectionName]);
 
     function submitSection(timeTaken){
@@ -30,8 +24,9 @@ const QuestionPage = () =>{
             return;
         }
         const storedAnswers = JSON.parse(localStorage.getItem("answers")) || [];
-        if(!storedAnswers || storedAnswers.length !== 10){
-            alert("Please answer all questions before submitting the section");
+        const answeredQuestions = new Set(storedAnswers.map(answer => answer.qNumber));
+        if (answeredQuestions.size !== 10) {
+            alert("Please answer all questions before submitting.");
             return;
         }
 
@@ -39,27 +34,29 @@ const QuestionPage = () =>{
         const sessionId = localStorage.getItem("sessionId");
         try{
             const URL = import.meta.env.VITE_REACT_API_URL + "/api/submit";
-            axios.post(URL, {
+            const response = axios.post(URL, {
                 userId,
                 sessionId,
                 section: sectionName,
                 answers: storedAnswers,
                 timeTaken: parseInt(timeTaken)
             });
-            console.log(`Section ${sectionName} completed in ${timeTaken} seconds`);
+            localStorage.removeItem("answers");
+            localStorage.removeItem("sectionTimer");
+            console.log(response.message);
         }catch(err){
             console.log(err);
         }
     }
 
     return (
-        <div className="flex">
-            <div className="w-1/4 h-screen bg-gray-200">
+        <div className="flex bg-gray-100 h-screen">
+            <div className="w-1/3 h-full">
                 <TestNav onSubmit={submitSection} setTime/>
             </div>
-            <div className="w-3/4 h-screen bg-gray-100 text-gray-900 p-10">
+            <div className="w-2/3 h-full text-gray-900 p-10 overflow-y-scroll">
                 <Question 
-                    qnumber={parseInt(qNumber)}
+                    qnumber={parseInt(questionNumber)}
                     question="What is the capital of India?"
                     options={["Delhi", "Mumbai", "Kolkata", "Chennai"]}
                 />

@@ -7,7 +7,6 @@ const Register = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
         let URL = import.meta.env.VITE_REACT_API_URL + "/api/signup";
         let data = {
             "name": e.target["full-name"].value,
