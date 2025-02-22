@@ -43,15 +43,14 @@ async def check_section_completion(user_id: str, section: str):
 @router.post("/submit", response_model=dict)
 async def submit_answers(student_answer: StudentAnswer):
     try:
-        # First, validate if the session exists
+        # Validate if the session exists
         session_check = supabase.table("Sessions").select("session_id").eq("session_id", student_answer.sessionId).execute()
-        
         if not session_check.data:
             raise HTTPException(status_code=404, detail="Session does not exist")
         
         # Extract question IDs from the request
         question_numbers = [response.qNumber for response in student_answer.answers]
-        
+
         # Fetch correct answers for all given question numbers
         response = supabase.table("Questions").select("question_id, correct_answer").in_("question_id", question_numbers).execute()
         question_data = {q["question_id"]: q["correct_answer"] for q in response.data}
@@ -62,7 +61,7 @@ async def submit_answers(student_answer: StudentAnswer):
         # Prepare bulk insert data for answers
         insert_data = []
         results = []
-        
+
         for answer in student_answer.answers:
             if answer.qNumber not in question_data:
                 continue  # Skip if question not found
@@ -88,16 +87,27 @@ async def submit_answers(student_answer: StudentAnswer):
         
         # Insert all answers in one go
         insert_response = supabase.table("Student_Answers").insert(insert_data).execute()
-        
+
         # Record time taken for this section in Student_Section_Time table
         time_data = {
             "student_id": student_answer.userId,
             "section": student_answer.section,
             "time_spent_seconds": student_answer.timeTaken
         }
-        
         time_response = supabase.table("Student_Section_Time").insert(time_data).execute()
-        
+
+        # If the section is 'D', check if A, B, and C have been completed
+        if student_answer.section == "D":
+            completed_sections = supabase.table("Student_Section_Time").select("section").eq("student_id", student_answer.userId).in_("section", ["A", "B", "C"]).execute()
+            completed_section_names = {s["section"] for s in completed_sections.data}
+
+            # If A, B, and C are all present, mark Test_Completed as true
+            if {"A", "B", "C"}.issubset(completed_section_names):
+                supabase.table("Test_Completed").upsert({
+                    "student_id": student_answer.userId,
+                    "completed": True
+                }).execute()
+
         return {
             "status": "success",
             "inserted_count": len(insert_response.data),
@@ -108,6 +118,7 @@ async def submit_answers(student_answer: StudentAnswer):
         raise he  # Re-raise HTTP exceptions as-is
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 
 
@@ -149,10 +160,12 @@ async def signup(user: UserSignup):
         "created_at": user_response.data[0]["created_at"],
         "student_id": student_response.data[0]["student_id"]
     }
+
 @router.post("/login", response_model=dict)
 async def login(user: UserLogin):
-    # Updated query to include date_of_birth check
-    db_user = supabase.table("Users").select("user_id, mobile, created_at, date_of_birth").eq("name", user.name).eq("mobile", user.mobile).eq("date_of_birth", user.date_of_birth).execute()
+    # Fetch user from Users table
+    db_user = supabase.table("Users").select("user_id, mobile, created_at, date_of_birth")\
+        .eq("name", user.name).eq("mobile", user.mobile).eq("date_of_birth", user.date_of_birth).execute()
 
     if not db_user.data:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -160,12 +173,23 @@ async def login(user: UserLogin):
     user_data = db_user.data[0]
     user_id = user_data["user_id"]
     date_of_birth = user_data["date_of_birth"]
-    
+
+    # Check if user exists in Test_Completed table
+    test_status = supabase.table("Test_Completed").select("completed").eq("student_id", user_id).execute()
+
+    if not test_status.data:
+        # If the user is not found, insert with completed = False
+        supabase.table("Test_Completed").insert({"student_id": user_id, "completed": False}).execute()
+        completed_status = False
+    else:
+        # If found, check the test completion status
+        completed_status = test_status.data[0]["completed"]
+
     # Check for existing active session
-    existing_session = supabase.table("Sessions").select("session_id, token").eq("user_id", user_id).gt("expires_at", datetime.datetime.utcnow().isoformat()).execute()
-    print(existing_session.data)
+    existing_session = supabase.table("Sessions").select("session_id, token")\
+        .eq("user_id", user_id).gt("expires_at", datetime.datetime.utcnow().isoformat()).execute()
+
     if existing_session.data:
-        # Return existing session
         session_data = existing_session.data[0]
         return {
             "message": "Already logged in",
@@ -177,9 +201,10 @@ async def login(user: UserLogin):
                 "mobile": user.mobile,
                 "date_of_birth": date_of_birth,
                 "created_at": user_data["created_at"]
-            }
+            },
+            "test_completed": completed_status
         }
-    
+
     # If no active session exists, create a new one
     created_at = datetime.datetime.utcnow().isoformat()
     session_id = secrets.token_hex(32)
@@ -205,8 +230,10 @@ async def login(user: UserLogin):
             "mobile": user.mobile,
             "date_of_birth": date_of_birth,
             "created_at": created_at
-        }
+        },
+        "test_completed": completed_status
     }
+
 
 @router.get("/protected", response_model=dict)
 async def protected_route(token: str, session_id: str, user_id: str):
