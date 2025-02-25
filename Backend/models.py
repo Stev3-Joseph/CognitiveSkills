@@ -18,7 +18,7 @@ class UserSignup(BaseModel):
     standard: int
     mobile: int
     date_of_birth: str
-    school: str
+    state: str
 
 class UserLogin(BaseModel):
     name: str

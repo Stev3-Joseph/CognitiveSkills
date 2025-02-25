@@ -139,7 +139,7 @@ async def signup(user: UserSignup):
         "mobile": user.mobile,
         "created_at": datetime.datetime.utcnow().isoformat(),
         "date_of_birth": user.date_of_birth,
-        "school": user.school
+        "state": user.state
     }).execute()
     
     # Get the newly created user_id
@@ -151,7 +151,7 @@ async def signup(user: UserSignup):
         "name": user.name,
         "age": user.age,
         "grade_level": user.standard , # Assuming 'standard' is equivalent to 'grade_level'
-        "school": user.school
+        "state": user.state
     }).execute()
 
     return {
