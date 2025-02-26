@@ -165,7 +165,7 @@ async def signup(user: UserSignup):
 async def login(user: UserLogin):
     # Fetch user from Users table
     db_user = supabase.table("Users").select("user_id, mobile, created_at, date_of_birth")\
-        .eq("name", user.name).eq("mobile", user.mobile).eq("date_of_birth", user.date_of_birth).execute()
+        .ilike("name", user.name).eq("mobile", user.mobile).eq("date_of_birth", user.date_of_birth).execute()
 
     if not db_user.data:
         raise HTTPException(status_code=401, detail="Invalid credentials")
