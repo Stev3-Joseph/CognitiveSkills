@@ -96,6 +96,10 @@ async def submit_answers(student_answer: StudentAnswer):
         }
         time_response = supabase.table("Student_Section_Time").insert(time_data).execute()
 
+        # Determine current_section for the next step
+        section_order = {"A": "B", "B": "C", "C": "D"}
+        current_section = section_order.get(student_answer.section)
+
         # If the section is 'D', check if A, B, and C have been completed
         if student_answer.section == "D":
             completed_sections = supabase.table("Student_Section_Time").select("section").eq("student_id", student_answer.userId).in_("section", ["A", "B", "C"]).execute()
@@ -107,17 +111,26 @@ async def submit_answers(student_answer: StudentAnswer):
                     "student_id": student_answer.userId,
                     "completed": True
                 }).execute()
+            
+            return {
+                "status": "success",
+                "inserted_count": len(insert_response.data),
+                "results": results,
+                "time_recorded": bool(time_response.data)
+            }
 
         return {
             "status": "success",
             "inserted_count": len(insert_response.data),
             "results": results,
-            "time_recorded": bool(time_response.data)
+            "time_recorded": bool(time_response.data),
+            "current_section": current_section
         }
     except HTTPException as he:
         raise he  # Re-raise HTTP exceptions as-is
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 
 
@@ -166,32 +179,45 @@ async def login(user: UserLogin):
     # Fetch user from Users table
     db_user = supabase.table("Users").select("user_id, mobile, created_at, date_of_birth")\
         .ilike("name", user.name).eq("mobile", user.mobile).eq("date_of_birth", user.date_of_birth).execute()
-
+    
     if not db_user.data:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-
+    
     user_data = db_user.data[0]
     user_id = user_data["user_id"]
     date_of_birth = user_data["date_of_birth"]
 
     # Check if user exists in Test_Completed table
     test_status = supabase.table("Test_Completed").select("completed").eq("student_id", user_id).execute()
-
+    
     if not test_status.data:
-        # If the user is not found, insert with completed = False
         supabase.table("Test_Completed").insert({"student_id": user_id, "completed": False}).execute()
         completed_status = False
     else:
-        # If found, check the test completion status
         completed_status = test_status.data[0]["completed"]
-
+    
+    current_section = None
+    if not completed_status:
+        student_section = supabase.table("Student_Section_Time").select("section").eq("student_id", user_id).execute()
+        
+        if not student_section.data:
+            current_section = "A"
+        else:
+            sections = [entry["section"] for entry in student_section.data]
+            if "C" in sections:
+                current_section = "D"
+            elif "B" in sections:
+                current_section = "C"
+            elif "A" in sections:
+                current_section = "B"
+    
     # Check for existing active session
     existing_session = supabase.table("Sessions").select("session_id, token")\
         .eq("user_id", user_id).gt("expires_at", datetime.datetime.utcnow().isoformat()).execute()
-
+    
     if existing_session.data:
         session_data = existing_session.data[0]
-        return {
+        response = {
             "message": "Already logged in",
             "token": session_data["token"],
             "session_id": session_data["session_id"],
@@ -204,14 +230,16 @@ async def login(user: UserLogin):
             },
             "test_completed": completed_status
         }
-
-    # If no active session exists, create a new one
+        if not completed_status:
+            response["current_section"] = current_section
+        return response
+    
+    # Create a new session
     created_at = datetime.datetime.utcnow().isoformat()
     session_id = secrets.token_hex(32)
     hashed_session = hash_session_id(session_id)
     jwt_token = create_jwt(str(user_id))
-
-    # Store session in Supabase
+    
     supabase.table("Sessions").insert({
         "session_id": hashed_session,
         "user_id": user_id,
@@ -219,8 +247,8 @@ async def login(user: UserLogin):
         "created_at": created_at,
         "expires_at": (datetime.datetime.utcnow() + datetime.timedelta(days=7)).isoformat()
     }).execute()
-
-    return {
+    
+    response = {
         "message": "Login successful",
         "token": jwt_token,
         "session_id": hashed_session,
@@ -233,6 +261,10 @@ async def login(user: UserLogin):
         },
         "test_completed": completed_status
     }
+    if not completed_status:
+        response["current_section"] = current_section
+    
+    return response
 
 
 @router.get("/protected", response_model=dict)
