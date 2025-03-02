@@ -5,7 +5,7 @@ logging.basicConfig(level=logging.INFO)
 
 from auth import hash_session_id,verify_session, create_jwt, verify_jwt
 
-from models import StudentAnswer, UserSignup, UserLogin
+from models import StudentAnswer, UserSignup, UserLogin, Feedback
 
 import secrets
 import datetime
@@ -28,7 +28,21 @@ async def validate_session(session_id: str):
         return {
             "valid": False
         }
-        
+
+@router.post("/feedback", response_model=dict)
+async def submit_feedback(feedback: Feedback):
+    try:
+        response = supabase.table("Feedback").insert({
+            "name": feedback.name,
+            "mobile": feedback.mobile,
+            "email": feedback.email,
+            "query": feedback.query
+        }).execute()
+
+        return {"success": True, "message": "Feedback submitted successfully"}
+    except Exception as e:
+        print(f"Error submitting feedback: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to submit feedback")
 
 #check if user has completed a  section from Student_Section_Time table
 @router.post("/section", response_model=dict)

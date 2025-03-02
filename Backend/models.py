@@ -10,6 +10,12 @@ class StudentAnswer(BaseModel):
     section: str
     answers: list[response_model]
     timeTaken: int
+    
+class Feedback(BaseModel):
+    name: str
+    mobile: int
+    email: str
+    query: str
 
 
 class UserSignup(BaseModel):
