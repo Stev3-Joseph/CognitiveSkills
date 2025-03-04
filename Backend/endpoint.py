@@ -153,10 +153,16 @@ async def submit_answers(student_answer: StudentAnswer):
 async def signup(user: UserSignup):
     logging.info(f"Received payload: {user.dict()}")
     print(f"Received payload: {user.dict()}")
-    existing_user = supabase.table("Users").select("*").eq("mobile", user.mobile).execute()
+    # Check if a user with the same name, mobile, and date_of_birth exists
+    existing_user = supabase.table("Users").select("*")\
+        .eq("name", user.name)\
+        .eq("mobile", user.mobile)\
+        .eq("date_of_birth", user.date_of_birth)\
+        .execute()
 
     if existing_user.data:
-        raise HTTPException(status_code=400, detail="Phone number already registered")
+        raise HTTPException(status_code=400, detail="User already exists with the same name, mobile, and date of birth")
+
 
     # First, insert into Users table
     user_response = supabase.table("Users").insert({
